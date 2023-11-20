@@ -1,59 +1,68 @@
 import discord
 from discord import default_permissions
-
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 TOKEN = os.getenv("TOKEN")
 
-intent = discord.Intents.all()
-intent.messages = True
+bot = discord.Bot()
 
-bot = discord.Bot(intents=discord.Intents(reactions=True))
 
-@bot.event
-async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
-    channel = await bot.fetch_channel(payload.channel_id)
-    message = await channel.fetch_message(payload.message_id)
 
-    if message.author.id != bot.user.id:
-        return
+class RoleManagerView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
 
-    guild = await bot.fetch_guild(payload.guild_id)
-    bot_member = await guild.fetch_member(bot.user.id)
-    member = await guild.fetch_member(payload.user_id)
 
-    for role in bot_member.roles:
-        if payload.emoji.name == role.name:
-            await member.add_roles(role)
-            break
+    @discord.ui.button(label="取得", custom_id="button-grant", style=discord.ButtonStyle.blurple)
+    async def grant_button_callback(self, button: discord.ui.Button, interaction: discord.Interaction):
+        role = await self.serch_role(interaction)
+        if role == None:
+            return
 
-@bot.event
-async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
-    channel = await bot.fetch_channel(payload.channel_id)
-    message = await channel.fetch_message(payload.message_id)
+        member = interaction.user
+        if type(member) != discord.Member:
+            return
 
-    if message.author.id != bot.user.id:
-        return
+        await member.add_roles(role)
+        await interaction.response.send_message(f"ロール[{role.name}]を付与しました", ephemeral=True)
+        print(f"{member.name}にロール[{role.name}]を付与しました")
 
-    guild = await bot.fetch_guild(payload.guild_id)
-    bot_member = await guild.fetch_member(bot.user.id)
-    member = await guild.fetch_member(payload.user_id)
 
-    for role in bot_member.roles:
-        if payload.emoji.name == role.name:
-            await member.remove_roles(role)
-            break
+    @discord.ui.button(label="取り消し", custom_id="button-revoke", style=discord.ButtonStyle.red)
+    async def revoke_button_callback(self, button: discord.ui.Button, interaction: discord.Interaction):
+        role = await self.serch_role(interaction)
+        if role == None:
+            return
+
+        member = interaction.user
+        if type(member) != discord.Member:
+            return
+
+        await member.remove_roles(role)
+        await interaction.response.send_message(f"ロール[{role.name}]を取り消しました", ephemeral=True)
+        print(f"{member.name}からロール[{role.name}]を剥奪しました")
+
+
+    async def serch_role(self, interaction: discord.Interaction) -> discord.Role:
+        role_name = interaction.message.embeds[0].title
+        guild = await bot.fetch_guild(interaction.guild_id)
+        role = discord.utils.get(guild.roles, name=role_name)
+        return role
+
+
+    @bot.event
+    async def on_ready():
+        bot.add_view(RoleManagerView())
+        print("ロール管理botが起動しました")
+
 
 
 @bot.command(name="rolemanager")
 @default_permissions(manage_roles=True)
-async def rolemanager(ctx: discord.ApplicationContext):
-    await ctx.respond("ロール管理botです\nこのメッセージに所定のリアクションを付けると隠されたチャンネルを見ることができるようになります\nリアクションを取り消すとキャンセルされます")
-
-@bot.event
-async def on_ready():
-    print("ロール管理botが起動しました")
+async def rolemanager(ctx: discord.ApplicationContext, message: discord.Option(discord.SlashCommandOptionType.string), role: discord.Option(discord.SlashCommandOptionType.string)):
+    embed = discord.Embed(title=role, description=message)
+    await ctx.respond(embed=embed, view=RoleManagerView())
 
 bot.run(TOKEN)
