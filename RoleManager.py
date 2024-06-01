@@ -22,11 +22,15 @@ class RoleManagerView(discord.ui.View):
         # もしロールが見つからなければ終了
         role = await self.serch_role(interaction)
         if role == None:
+            role_name = interaction.message.embeds[0].title
+            print(f"ロール[{role_name}]が存在せず付与できませんでした")
+            await interaction.response.send_message(f"ロール[{role_name}]が存在せず付与できませんでした", ephemeral=True)
             return
 
         # userがmemberじゃなければ終了（念のため）
         member = interaction.user
         if type(member) != discord.Member:
+            print(f"不明なメンバーに付与できませんでした")
             return
 
         # ロール処理＆レスポンス＆ログ出力
@@ -40,11 +44,15 @@ class RoleManagerView(discord.ui.View):
         # もしロールが見つからなければ終了
         role = await self.serch_role(interaction)
         if role == None:
+            role_name = interaction.message.embeds[0].title
+            print(f"ロール[{role_name}]が存在せず剥奪できませんでした")
+            await interaction.response.send_message(f"ロール[{role_name}]が存在せず剥奪できませんでした", ephemeral=True)
             return
 
         # userがmemberじゃなければ終了（念のため）
         member = interaction.user
         if type(member) != discord.Member:
+            print(f"不明なメンバーに剥奪できませんでした")
             return
 
         # ロール処理＆レスポンス＆ログ出力
