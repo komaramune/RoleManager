@@ -1,5 +1,7 @@
+import asyncio
 import discord
 from discord import default_permissions
+import logging
 import os
 from dotenv import load_dotenv
 
@@ -7,6 +9,25 @@ from dotenv import load_dotenv
 load_dotenv()
 TOKEN = os.getenv("TOKEN")
 
+LOG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "log.txt")
+logging.basicConfig(
+    filename=LOG_FILE,
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    encoding="utf-8",
+)
+logger = logging.getLogger(__name__)
+
+
+def write_log(*args):
+    logger.info(" ".join(str(arg) for arg in args))
+
+
+try:
+    asyncio.get_event_loop()
+except RuntimeError:
+    asyncio.set_event_loop(asyncio.new_event_loop())
 
 bot = discord.Bot()
 
@@ -23,20 +44,20 @@ class RoleManagerView(discord.ui.View):
         role = await self.serch_role(interaction)
         if role == None:
             role_name = interaction.message.embeds[0].title
-            print(f"ロール[{role_name}]が存在せず付与できませんでした")
+            write_log(f"ロール[{role_name}]が存在せず付与できませんでした")
             await interaction.response.send_message(f"ロール[{role_name}]が存在せず付与できませんでした", ephemeral=True)
             return
 
         # userがmemberじゃなければ終了（念のため）
         member = interaction.user
         if type(member) != discord.Member:
-            print(f"不明なメンバーに付与できませんでした")
+            write_log("不明なメンバーに付与できませんでした")
             return
 
         # ロール処理＆レスポンス＆ログ出力
         await member.add_roles(role)
         await interaction.response.send_message(f"ロール[{role.name}]を付与しました", ephemeral=True)
-        print(f"{member.name}にロール[{role.name}]を付与しました")
+        write_log(f"{member.name}にロール[{role.name}]を付与しました")
 
     # 取り消しボタン
     @discord.ui.button(label="取り消し", custom_id="button-revoke", style=discord.ButtonStyle.red)
@@ -45,23 +66,23 @@ class RoleManagerView(discord.ui.View):
         role = await self.serch_role(interaction)
         if role == None:
             role_name = interaction.message.embeds[0].title
-            print(f"ロール[{role_name}]が存在せず剥奪できませんでした")
+            write_log(f"ロール[{role_name}]が存在せず剥奪できませんでした")
             await interaction.response.send_message(f"ロール[{role_name}]が存在せず剥奪できませんでした", ephemeral=True)
             return
 
         # userがmemberじゃなければ終了（念のため）
         member = interaction.user
         if type(member) != discord.Member:
-            print(f"不明なメンバーに剥奪できませんでした")
+            write_log("不明なメンバーに剥奪できませんでした")
             return
 
         # ロール処理＆レスポンス＆ログ出力
         await member.remove_roles(role)
         await interaction.response.send_message(f"ロール[{role.name}]を取り消しました", ephemeral=True)
-        print(f"{member.name}からロール[{role.name}]を剥奪しました")
+        write_log(f"{member.name}からロール[{role.name}]を剥奪しました")
 
     # ロール特定
-    async def serch_role(self, interaction: discord.Interaction) -> discord.Role|None:
+    async def serch_role(self, interaction: discord.Interaction) -> discord.Role | None:
         role_name = interaction.message.embeds[0].title
         guild = await bot.fetch_guild(interaction.guild_id)
         role = discord.utils.get(guild.roles, name=role_name)
@@ -71,7 +92,7 @@ class RoleManagerView(discord.ui.View):
     @bot.event
     async def on_ready():
         bot.add_view(RoleManagerView())
-        print("ロール管理botが起動しました")
+        write_log("ロール管理botが起動しました")
 
 
 # コマンド登録
@@ -80,6 +101,7 @@ class RoleManagerView(discord.ui.View):
 async def rolemanager(ctx: discord.ApplicationContext, message: discord.Option(discord.SlashCommandOptionType.string), role: discord.Option(discord.SlashCommandOptionType.string)):
     embed = discord.Embed(title=role, description=message)
     await ctx.respond(embed=embed, view=RoleManagerView())
+
 
 # bot起動
 bot.run(TOKEN)
